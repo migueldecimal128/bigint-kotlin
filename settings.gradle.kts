@@ -1,1 +1,1 @@
-rootProject.name = "bigint"
+rootProject.name = "bigint-kotlin"

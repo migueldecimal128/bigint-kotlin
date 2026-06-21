@@ -126,17 +126,6 @@ kotlin {
     macosX64()
     linuxX64()
 
-// Configure cinterop for ALL native targets
-    targets.withType<org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget> {
-        compilations.getByName("main") {
-            cinterops {
-                val unsigned_mul_hi by creating {
-                    defFile(project.file("src/nativeInterop/cinterop/unsigned_mul_hi.def"))
-                }
-            }
-        }
-    }
-
     // ---------------------------
     // 2. Source-set hierarchy
     // ---------------------------
@@ -160,6 +149,17 @@ kotlin {
                 implementation(kotlin("test"))
             }
         }
+
+        // Intermediate source set shared by every non-JVM target. Holds the pure
+        // Kotlin unsignedMulHi actual so native/js/wasmJs/wasmWasi share one copy
+        // (the JVM keeps its own Math.unsignedMultiplyHigh actual).
+        val nonJvmMain by creating {
+            dependsOn(commonMain)
+        }
+        val nativeMain by getting { dependsOn(nonJvmMain) }
+        val jsMain by getting { dependsOn(nonJvmMain) }
+        val wasmJsMain by getting { dependsOn(nonJvmMain) }
+        val wasmWasiMain by getting { dependsOn(nonJvmMain) }
 
         val macosX64Main by getting
         //val macosArm64Main by getting
