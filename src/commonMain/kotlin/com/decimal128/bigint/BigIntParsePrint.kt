@@ -155,7 +155,13 @@ internal object BigIntParsePrint {
         }
     }
 
-    private const val BARRETT_MU_1E9: ULong = 0x44B82FA09uL       // floor(2^64 / 1e9)
+    // Round-up reciprocal of 1e9: ceil(2^93 / 1e9). With unsignedMulHi (the
+    // >>64) plus S_U64_DIV_1E9 this yields floor(n / 1e9) EXACTLY for every
+    // dividend below 2^63 (proven via the round-up excess bound). The combined
+    // (rem<<32)|limb fed by the divide loop is always < 2^62, so no 0-or-1
+    // correction is ever required.
+    private const val M_U64_DIV_1E9: ULong = 0x89705F4136B4A598uL
+    private const val S_U64_DIV_1E9 = 29
     private const val ONE_E_9: ULong = 1_000_000_000uL
 
     private const val M_U32_DIV_1E1 = 0xCCCCCCCDuL
@@ -294,11 +300,11 @@ internal object BigIntParsePrint {
      * The function replaces each limb with its quotient and returns both
      * the new effective length and the remainder.
      *
-     * This version uses the **qHat + rHat staged Barrett method**:
-     * 1. Compute an approximate quotient `qHat` using the precomputed Barrett reciprocal [BARRETT_MU_1E9].
-     * 2. Compute the remainder `rHat = combined − qHat × 1e9`.
-     * 3. Conditionally increment `qHat` (and subtract 1e9 from `rHat`) if `rHat ≥ 1e9`.
-     *    This is a 0-or-1 correction; `qHat` never decreases.
+     * This version uses an **exact round-up reciprocal** ([M_U64_DIV_1E9] /
+     * [S_U64_DIV_1E9]): `q = unsignedMulHi(combined, M) >> S` is `floor(combined / 1e9)`
+     * exactly for every `combined < 2^63`, and the per-limb `combined` is always
+     * `< 2^62`, so the quotient needs **no correction** and the remainder
+     * `combined − q × 1e9` is already in `[0, 1e9)`.
      *
      * The remainder from each limb is propagated to the next iteration.
      *
@@ -315,8 +321,7 @@ internal object BigIntParsePrint {
      *   - upper 32 bits: new effective limb count after trimming
      *   - lower 32 bits: remainder of the division by 1e9
      *
-     * **Note:** The correction is a 0-or-1 adjustment; `qHat` never decreases.
-     * **Correctness:** Guarantees that after each limb, `0 ≤ rHat < 1e9`.
+     * **Correctness:** Guarantees that after each limb, `0 ≤ rem < 1e9`.
      */
     fun mutateBarrettDivBy1e9(magia: Magia, len: Int): ULong {
         var rem = 0uL
@@ -325,22 +330,11 @@ internal object BigIntParsePrint {
             val limb = magia[i].toUInt().toULong()
             val combined = (rem shl 32) or limb
 
-            // approximate quotient using Barrett reciprocal
-            var qHat = unsignedMulHi(combined, BARRETT_MU_1E9)
+            // exact quotient via the round-up reciprocal (no correction needed)
+            val q = unsignedMulHi(combined, M_U64_DIV_1E9) shr S_U64_DIV_1E9
+            rem = combined - q * ONE_E_9
 
-            // compute remainder
-            var rHat = combined - qHat * ONE_E_9
-
-            // 0-or-1 adjustment: increment qHat if remainder >= 1e9
-            // use signed shr to propagate the sign bit
-            // adjustMask will have value 0 or -1 (aka 0xFF...FF)
-            // if (rHat < ONE_E_9) 0uL else -1uL
-            val adjustMask = ((rHat - ONE_E_9).toLong() shr 63).toULong().inv()
-            qHat -= adjustMask
-            rHat -= ONE_E_9 and adjustMask
-
-            magia[i] = qHat.toInt()
-            rem = rHat
+            magia[i] = q.toInt()
         }
 
         val mostSignificantLimbNonZero = (-magia[len - 1]) ushr 31 // 0 or 1
