@@ -14,13 +14,13 @@ class TestKaratsubaSquare1 {
         val k1 = n - k0
         val t = IntArray(3 * k1 + 3)
 
-        karatsubaSqr(
+        magia_karatsubaSqr(
             z, 0,
             a.magia, 0, n,
             t
         )
 
-        val zLen = normLen(z, z.size)
+        val zLen = magia_normLen(z, z.size)
 
         val got = BigInt.fromLittleEndianIntArray(
             false,   // non-negative

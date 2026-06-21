@@ -432,7 +432,17 @@ object BigIntAlgorithms {
             }
             carry += t[i + k].toUInt().toULong()
             t[i + k] = carry.toInt()
-            t[i + k + 1] += (carry shr 32).toInt()
+            // propagate the remaining carry through the high limbs (a single-limb
+            // push loses a carry when t[i+k+1] is already 0xFFFFFFFF — observable
+            // for sparse moduli just above a power of two)
+            var c = carry shr 32
+            var idx = i + k + 1
+            while (c != 0uL) {
+                val acc = t[idx].toUInt().toULong() + c
+                t[idx] = acc.toInt()
+                c = acc shr 32
+                idx++
+            }
         }
 
         // --- Phase 2: shift down the upper half ---
@@ -442,10 +452,10 @@ object BigIntAlgorithms {
         // --- Phase 3: conditional subtract modulus ---
         // if T >= N, subtract once
 
-        val tNormLen = normLen(t, k + 1)
-        if (compare(t, tNormLen, n, k) < 0)
+        val tNormLen = magia_normLen(t, k + 1)
+        if (magia_compare(t, tNormLen, n, k) < 0)
             return tNormLen
-        return setSub(t, t, tNormLen, n, k)
+        return magia_setSub(t, t, tNormLen, n, k)
     }
 
 

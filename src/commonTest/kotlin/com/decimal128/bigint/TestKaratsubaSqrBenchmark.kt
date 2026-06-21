@@ -48,16 +48,16 @@ class TestKaratsubaSqrBenchmark {
 
             if (n <= 4) {
                 bench("hand rolled") {
-                    setSqr(z, a, n)
+                    magia_setSqr(z, a, n)
                 }
             }
 
             //bench("setSqrSchoolbook") {
-            //    setSqrSchoolbook(z, a, n)
+            //    magia_setSqrSchoolbook(z, a, n)
             //}
 
-            //bench("setMulSchoolbook(a,a)") {
-            //    setMulSchoolbook(z, a, n, a, n)
+            //bench("magia_setMulSchoolbook(a,a)") {
+            //    magia_setMulSchoolbook(z, a, n, a, n)
             //}
 
             //bench("Karatsuba.setSqrSchoolbookK") {
@@ -67,11 +67,11 @@ class TestKaratsubaSqrBenchmark {
 
             bench("Karatsuba.setSqrKaratsuba") {
                 z.fill(0)
-                setSqrKaratsuba(z, a, n, t)
+                magia_setSqrKaratsuba(z, a, n, t)
             }
 
             bench("setSqrSchoolbook") {
-                setSqrSchoolbook(z, a, n)
+                magia_setSqrSchoolbook(z, a, n)
             }
 
             //bench("setSqrCombaFused") {

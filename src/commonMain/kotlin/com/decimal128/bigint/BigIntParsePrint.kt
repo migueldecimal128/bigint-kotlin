@@ -53,7 +53,7 @@ internal object BigIntParsePrint {
      * @return the decimal string representation of the signed value.
      */
     fun toString(isNegative: Boolean, magia: Magia): String =
-        toString(isNegative, magia, normLen(magia))
+        toString(isNegative, magia, magia_normLen(magia))
 
     /**
      * Converts a multi-limb integer to its decimal string representation.
@@ -66,9 +66,9 @@ internal object BigIntParsePrint {
      */
     fun toString(isNegative: Boolean, x: Magia, xNormLen: Int): String {
         if (xNormLen >= 0 && xNormLen <= x.size) {
-            if (!isNormalized(x, xNormLen))
+            if (!magia_isNormalized(x, xNormLen))
                 return "[not-normalized]"
-            val bitLen = normBitLen(x, xNormLen)
+            val bitLen = magia_normBitLen(x, xNormLen)
             if (bitLen < 2) {
                 if (bitLen == 0)
                     return "0"
@@ -76,8 +76,8 @@ internal object BigIntParsePrint {
             }
             val maxSignedLen = maxDigitLenFromBitLen(bitLen) + if (isNegative) 1 else 0
             val utf8 = ByteArray(maxSignedLen)
-            val limbLen = normLen(x, xNormLen)
-            val t = newCopyWithExactLimbLen(x, xNormLen, limbLen)
+            val limbLen = magia_normLen(x, xNormLen)
+            val t = magia_newCopyWithExactLimbLen(x, xNormLen, limbLen)
             val len = destructiveToUtf8BeforeIndex(utf8, utf8.size, isNegative, t, limbLen)
             val startingIndex = utf8.size - len
             verify { startingIndex <= 1 }
@@ -379,7 +379,7 @@ internal object BigIntParsePrint {
     private fun toHexString(bi: BigIntNumber, prefixUtf8: ByteArray, useUpperCase: Boolean, minPrintLength: Int, suffixUtf8: ByteArray): String {
         val signCount = bi.meta.signBit
         val prefixCount = prefixUtf8.size
-        val nybbleCount = max((normBitLen(bi.magia, bi.meta.normLen) + 3) / 4, minPrintLength)
+        val nybbleCount = max((magia_normBitLen(bi.magia, bi.meta.normLen) + 3) / 4, minPrintLength)
         val suffixCount = suffixUtf8.size
         val totalLen = signCount + prefixCount + nybbleCount + suffixCount
         val utf8 = ByteArray(totalLen)
@@ -560,7 +560,7 @@ internal object BigIntParsePrint {
                 bitLen == 0 -> return MAGIA_ZERO
                 bitLen == Int.MAX_VALUE -> return fromHex(src.reset())
             }
-            val z = newWithBitLen(bitLen)
+            val z = magia_newWithBitLen(bitLen)
             if (parseHelper(src, z, z.size))
                 return z
         } while (false)
@@ -578,12 +578,12 @@ internal object BigIntParsePrint {
             }
             bitLen == Int.MAX_VALUE -> return tryParseHexText(src, mbi)
         }
-        val limbLen = limbLenFromBitLen(bitLen)
+        val limbLen = magia_limbLenFromBitLen(bitLen)
         mbi.updateMeta(Meta(0))
         mbi.ensureMagiaCapacityCopyZeroExtend(limbLen)
         if (! parseHelper(src, mbi.magia, limbLen))
             return false
-        val normLen = normLen(mbi.magia, limbLen)
+        val normLen = magia_normLen(mbi.magia, limbLen)
         mbi.updateMeta(Meta(isNeg, normLen))
         return true
     }
@@ -716,13 +716,13 @@ internal object BigIntParsePrint {
             ++accumulatorDigitCount
             if (accumulatorDigitCount < 9)
                 continue
-            mutateFmaPow10(z, zLen, 9, accumulator)
+            magia_mutateFmaPow10(z, zLen, 9, accumulator)
             accumulator = 0u
             accumulatorDigitCount = 0
         }
         if (ch == '\u0000' && chLast != '_') {
             if (accumulatorDigitCount > 0)
-                mutateFmaPow10(z, zLen, accumulatorDigitCount, accumulator)
+                magia_mutateFmaPow10(z, zLen, accumulatorDigitCount, accumulator)
             return true
         }
         return false;
@@ -744,7 +744,7 @@ internal object BigIntParsePrint {
         if (nybbleCount >= 0) {
             if (nybbleCount == 0)
                 return MAGIA_ZERO
-            val z = newWithBitLen(nybbleCount shl 2)
+            val z = magia_newWithBitLen(nybbleCount shl 2)
             parseHexHelper(src, nybbleCount, z, z.size)
             return z
         }

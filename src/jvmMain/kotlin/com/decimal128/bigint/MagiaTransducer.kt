@@ -37,8 +37,8 @@ object MagiaTransducer {
         return magiaFromBi(BigInteger(str))
     }
 
-    fun compare(magia: IntArray, bi: BigInteger): Int {
-        val magiaBitLen = bitLen(magia)
+    fun magia_compare(magia: IntArray, bi: BigInteger): Int {
+        val magiaBitLen = magia_bitLen(magia)
         val cmpBitLen = magiaBitLen.compareTo(bi.bitLength())
         if (cmpBitLen != 0)
             return cmpBitLen
@@ -51,7 +51,7 @@ object MagiaTransducer {
         return 0
     }
 
-    fun EQ(magia: IntArray, bi:BigInteger) = compare(magia, bi) == 0
+    fun EQ(magia: IntArray, bi:BigInteger) = magia_compare(magia, bi) == 0
 
     fun calcDigitCount(magia: IntArray): Int {
         val bi = magiaToBi(magia)

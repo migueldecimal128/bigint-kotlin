@@ -28,7 +28,7 @@ internal const val SCHOOLBOOK_SQR_THRESHOLD = 12
 /**
  * Returns the 32-bit limb `n` zero-extended to a 64-bit `ULong`.
  */
-private inline fun dw32(n: Int) = n.toUInt().toULong()
+private inline fun magia_dw32(n: Int) = n.toUInt().toULong()
 
 
 /**
@@ -46,7 +46,7 @@ private inline fun dw32(n: Int) = n.toUInt().toULong()
  *
  * @return normalized limb length of the result
  */
-internal fun setSqr(z: Magia, x: Magia, xNormLen: Int): Int {
+internal fun magia_setSqr(z: Magia, x: Magia, xNormLen: Int): Int {
     return when {
         xNormLen == 0 -> 0
         xNormLen == 1 -> setSqr1Limb(z, x)
@@ -57,10 +57,10 @@ internal fun setSqr(z: Magia, x: Magia, xNormLen: Int): Int {
             // overhead cost for squaring, including doubling
             // of the cross terms, overwhelms simple
             // multiplication for quite a while
-            setMulSchoolbook(z, x, xNormLen, x, xNormLen)
+            magia_setMulSchoolbook(z, x, xNormLen, x, xNormLen)
 
         else ->
-            setSqrSchoolbook(z, 0, x, 0, xNormLen)
+            magia_setSqrSchoolbook(z, 0, x, 0, xNormLen)
     }
 }
 
@@ -70,8 +70,8 @@ internal fun setSqr(z: Magia, x: Magia, xNormLen: Int): Int {
  *
  * @return normalized limb length of the result
  */
-internal inline fun setSqrSchoolbook(z: Magia, x: Magia, xNormLen: Int): Int =
-    setSqrSchoolbook(z, 0, x, 0, xNormLen)
+internal inline fun magia_setSqrSchoolbook(z: Magia, x: Magia, xNormLen: Int): Int =
+    magia_setSqrSchoolbook(z, 0, x, 0, xNormLen)
 
 /**
  * Squares `x[xOff .. xOff+xNormLen)` using schoolbook multiplication and
@@ -83,7 +83,7 @@ internal inline fun setSqrSchoolbook(z: Magia, x: Magia, xNormLen: Int): Int =
  *
  * @return normalized limb length of the result
  */
-internal fun setSqrSchoolbook(z: Magia, zOff: Int, x: Magia, xOff: Int, xNormLen: Int): Int {
+internal fun magia_setSqrSchoolbook(z: Magia, zOff: Int, x: Magia, xOff: Int, xNormLen: Int): Int {
     if (xNormLen == 0)
         return 0
     val zLen = 2 * xNormLen
@@ -94,12 +94,12 @@ internal fun setSqrSchoolbook(z: Magia, zOff: Int, x: Magia, xOff: Int, xNormLen
     // 1) Cross terms: i < j
     // We compute the sum of all a[i]*a[j] where i < j
     for (i in 0 until xNormLen - 1) {
-        val ai = dw32(x[xOff + i])
+        val ai = magia_dw32(x[xOff + i])
         var carry = 0uL
         for (j in i + 1 until xNormLen) {
             val k = i + j
             // Standard row-multiply accumulation
-            val t = ai * dw32(x[xOff + j]) + dw32(z[zOff + k]) + carry
+            val t = ai * magia_dw32(x[xOff + j]) + magia_dw32(z[zOff + k]) + carry
             z[zOff + k] = t.toInt()
             carry = t shr 32
         }
@@ -111,7 +111,7 @@ internal fun setSqrSchoolbook(z: Magia, zOff: Int, x: Magia, xOff: Int, xNormLen
 
     var shiftCarry = 0uL
     for (i in 0 until zLen) {
-        val zi = dw32(z[zOff + i])
+        val zi = magia_dw32(z[zOff + i])
         val t = (zi shl 1) or shiftCarry
         z[zOff + i] = t.toInt()
         shiftCarry = t shr 32
@@ -121,21 +121,21 @@ internal fun setSqrSchoolbook(z: Magia, zOff: Int, x: Magia, xOff: Int, xNormLen
     // We add these directly into the doubled cross-terms
     for (i in 0 until xNormLen) {
         var k = 2 * i
-        val zk = dw32(z[zOff + k])
-        val ai = dw32(x[xOff + i])
+        val zk = magia_dw32(z[zOff + k])
+        val ai = magia_dw32(x[xOff + i])
         val sqa = ai * ai + zk
 
         // Add low 32 bits
         z[zOff + k] = sqa.toInt()
         ++k
         // Add high 32 bits + carry
-        var carry = dw32(z[zOff + k]) + (sqa shr 32)
+        var carry = magia_dw32(z[zOff + k]) + (sqa shr 32)
         z[zOff + k] = carry.toInt()
         carry = carry shr 32
         ++k
 
         while (carry != 0uL && k < zLen) {
-            carry = dw32(z[zOff + k]) + carry
+            carry = magia_dw32(z[zOff + k]) + carry
             z[zOff + k] = carry.toInt()
             carry = carry shr 32
             ++k
@@ -187,9 +187,9 @@ private inline fun setSqr2Limbs(z: Magia, a: Magia): Int {
  * @return normalized limb length (5 or 6)
  */
 private inline fun setSqr3Limbs(z: Magia, a: Magia): Int {
-    val a0 = dw32(a[0])   // ULong, 0..2^32-1
-    val a1 = dw32(a[1])
-    val a2 = dw32(a[2])
+    val a0 = magia_dw32(a[0])   // ULong, 0..2^32-1
+    val a1 = magia_dw32(a[1])
+    val a2 = magia_dw32(a[2])
 
     val s0 = a0 * a0
     val s1 = a1 * a1
@@ -279,10 +279,10 @@ private inline fun setSqr3Limbs(z: Magia, a: Magia): Int {
  * @return normalized limb length (7 or 8)
  */
 private inline fun setSqr4Limbs(z: Magia, a: Magia): Int {
-    val a0 = dw32(a[0]);
-    val a1 = dw32(a[1])
-    val a2 = dw32(a[2]);
-    val a3 = dw32(a[3])
+    val a0 = magia_dw32(a[0]);
+    val a1 = magia_dw32(a[1])
+    val a2 = magia_dw32(a[2]);
+    val a3 = magia_dw32(a[3])
 
     val s0 = a0 * a0;
     val s1 = a1 * a1;
@@ -381,13 +381,13 @@ private inline fun setSqr4Limbs(z: Magia, a: Magia): Int {
  *
  * @return normalized limb length of the result
  */
-internal fun setSqrKaratsuba(z: Magia, x: Magia, xNormLen: Int, tmp: IntArray? = null): Int {
+internal fun magia_setSqrKaratsuba(z: Magia, x: Magia, xNormLen: Int, tmp: IntArray? = null): Int {
     val k1 = (xNormLen + 1) / 2
     val tmpSize = 3 * k1 + 3
     verify { z.size >= 2 * xNormLen + 1 }
     verify { tmp == null || tmp.size >= tmpSize }
     val t = tmp ?: IntArray(tmpSize)
-    karatsubaSqr(z, 0, x, 0, xNormLen, t)
+    magia_karatsubaSqr(z, 0, x, 0, xNormLen, t)
     val zLastIndex = 2 * xNormLen - 1
     val zLastLimb = z[zLastIndex]
     val zNormLen = zLastIndex + ((zLastLimb or -zLastLimb) ushr 31)
@@ -416,13 +416,13 @@ internal fun setSqrKaratsuba(z: Magia, x: Magia, xNormLen: Int, tmp: IntArray? =
  * @param aLen number of active limbs in [a]
  * @param t scratch buffer used for Karatsuba temporaries
  */
-fun karatsubaSqr(
+fun magia_karatsubaSqr(
     z: IntArray, zOff: Int,
     a: IntArray, aOff: Int, aLen: Int,
     t: IntArray
 ) {
     if (aLen < KARATSUBA_SQR_THRESHOLD) {
-        setSqrSchoolbook(z, zOff, a, aOff, aLen)
+        magia_setSqrSchoolbook(z, zOff, a, aOff, aLen)
         return
     }
 
@@ -433,21 +433,21 @@ fun karatsubaSqr(
     require(t.size >= (3 * k1 + 3))
 
     // square lo half of a into z as z0
-    karatsubaSqr(z, zOff, a, aOff, k0, t)
+    magia_karatsubaSqr(z, zOff, a, aOff, k0, t)
     // square hi half of a into z as z1
-    karatsubaSqr(z, zOff + 2 * k0, a, aOff + k0, k1, t)
+    magia_karatsubaSqr(z, zOff + 2 * k0, a, aOff + k0, k1, t)
     // add a0 and a1 as s into t
-    ksetAdd(t, a, aOff, k0, k1)
+    magia_ksetAdd(t, a, aOff, k0, k1)
     // square s to s2 higher in t
-    setSqrSchoolbook(t, k1 + 1, t, 0, k1 + 1)
+    magia_setSqrSchoolbook(t, k1 + 1, t, 0, k1 + 1)
     // subtract z0 from s2
     val z1Off = k1 + 1
-    kmutSub(t, z1Off, z, zOff, 2 * k0)
+    magia_kmutSub(t, z1Off, z, zOff, 2 * k0)
     // subtract z2 from s2
-    kmutSub(t, z1Off, z, zOff + 2 * k0, 2 * k1)
+    magia_kmutSub(t, z1Off, z, zOff + 2 * k0, 2 * k1)
     // add shifted s2 as z1 into z
     val z1FullLen = 2 * (k1 + 1)
-    kmutAddShifted(z, zOff, t, z1Off, z1FullLen, k0)
+    magia_kmutAddShifted(z, zOff, t, z1Off, z1FullLen, k0)
     // and we're done
 }
 
@@ -468,7 +468,7 @@ fun karatsubaSqr(
  * @param k0 limb length of the first addend
  * @param k1 limb length of the second addend
  */
-internal fun ksetAdd(
+internal fun magia_ksetAdd(
     t: IntArray,
     a: IntArray, aOff: Int,
     k0: Int, k1: Int
@@ -494,7 +494,7 @@ internal fun ksetAdd(
     // By using '0 until k0', the JIT sees 'i' is bounded and can
     // eliminate range checks for t[i], a[a0Off + i], and a[a1Off + i].
     for (i in 0 until k0) {
-        val tmp = dw32(a[aOff + i]) + dw32(a[a1Off + i]) + carry
+        val tmp = magia_dw32(a[aOff + i]) + magia_dw32(a[a1Off + i]) + carry
         t[i] = tmp.toInt()
         carry = tmp shr 32
     }
@@ -502,7 +502,7 @@ internal fun ksetAdd(
     // 4. Handle the "extra" limb if k1 > k0
     // Because of Karatsuba constraints, this executes at most once.
     if (k0 < k1) {
-        val tmp = dw32(a[a1Off + k0]) + carry
+        val tmp = magia_dw32(a[a1Off + k0]) + carry
         t[k0] = tmp.toInt()
         carry = tmp shr 32
     }
@@ -518,7 +518,7 @@ internal fun ksetAdd(
  *
  * Throws if the borrow escapes `t`, indicating a violated Karatsuba invariant.
  */
-internal fun kmutSub(
+internal fun magia_kmutSub(
     t: IntArray, s2Off: Int,
     z: IntArray, xOff: Int, xLen: Int
 ) {
@@ -539,7 +539,7 @@ internal fun kmutSub(
     for (i in 0 until xLen) {
         val tIdx = start + i
         val zIdx = xOff + i
-        val tmp = dw32(t[tIdx]) - dw32(z[zIdx]) - borrow
+        val tmp = magia_dw32(t[tIdx]) - magia_dw32(z[zIdx]) - borrow
         t[tIdx] = tmp.toInt()
         borrow = tmp shr 63
     }
@@ -555,7 +555,7 @@ internal fun kmutSub(
                         "which is mathematically impossible for Karatsuba squaring."
             )
         }
-        val tmp = dw32(t[k]) - borrow
+        val tmp = magia_dw32(t[k]) - borrow
         t[k] = tmp.toInt()
         borrow = tmp shr 63
         k++
@@ -578,7 +578,7 @@ internal fun kmutSub(
  * @param z1Len number of limbs to add
  * @param k0Shift limb offset applied to the destination index
  */
-internal fun kmutAddShifted(
+internal fun magia_kmutAddShifted(
     z: IntArray, zOff: Int,
     t: IntArray, z1Off: Int, z1Len: Int, k0Shift: Int
 ) {
@@ -596,7 +596,7 @@ internal fun kmutAddShifted(
 
     // 2. Primary Addition Loop
     for (i in 0 until z1Len) {
-        val tmp = dw32(z[start + i]) + dw32(t[z1Off + i]) + carry
+        val tmp = magia_dw32(z[start + i]) + magia_dw32(t[z1Off + i]) + carry
         z[start + i] = tmp.toInt()
         carry = tmp shr 32
     }
@@ -606,7 +606,7 @@ internal fun kmutAddShifted(
     // Use the actual size to ensure BCE, but the math
     // ensures carry becomes 0 before we run out of array.
     while (carry != 0uL && k < z.size) {
-        val tmp = dw32(z[k]) + carry
+        val tmp = magia_dw32(z[k]) + carry
         z[k] = tmp.toInt()
         carry = tmp shr 32
         k++

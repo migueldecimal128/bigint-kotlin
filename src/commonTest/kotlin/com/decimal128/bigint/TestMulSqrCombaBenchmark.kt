@@ -57,20 +57,20 @@ class TestMulSqrCombaBenchmark {
 
             if (n <= 4) {
                 bench("hand rolled") {
-                    setSqr(z, a, n)
+                    magia_setSqr(z, a, n)
                 }
             }
 
             //bench("setSqrSchoolbook") {
-            //    setSqrSchoolbook(z, a, n)
+            //    magia_setSqrSchoolbook(z, a, n)
             //}
 
             bench("setSqrSchoolbook") {
-                setSqrSchoolbook(z, a, n)
+                magia_setSqrSchoolbook(z, a, n)
             }
 
-            bench("setMulSchoolbook(a,a)") {
-                setMulSchoolbook(z, a, n, a, n)
+            bench("magia_setMulSchoolbook(a,a)") {
+                magia_setMulSchoolbook(z, a, n, a, n)
             }
 
             //bench("setSqrCombaFused") {
@@ -95,7 +95,7 @@ class TestMulSqrCombaBenchmark {
                 if (verbose)
                     println("n=$n m=$m")
                 bench("setMulSchoolbook") {
-                    setMulSchoolbook(z, a, n, b, m)
+                    magia_setMulSchoolbook(z, a, n, b, m)
                 }
 
                 //bench("setMulCombaFused") {

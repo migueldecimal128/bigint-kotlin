@@ -230,6 +230,32 @@ class TestBarrettVsMontgomery {
         println("ratio Barrett/Mont = $rounded")
     }
 
+    /**
+     * Regression: Montgomery REDC dropped a carry in its Phase-1 tail for moduli
+     * just above a power of two (sparse high limb, zero middle limbs), e.g.
+     * 2^128+51. Random moduli almost never hit the 0xFFFFFFFF-carry alignment, so
+     * this guards the now-fully-chained carry propagation explicitly.
+     */
+    @Test
+    fun montgomeryMatchesBarrett_sparseModuli() {
+        val sparse = listOf(
+            "340282366920938463463374607431768211507",        // 2^128 + 51 (prime)
+            "1461501637330902918203684832716283019655932542983", // 2^160 + 7 (prime)
+            "6277101735386680763835789423207666416102355444464034512947", // 2^192 + 51
+            "115792089237316195423570985008687907853269984665640564039457584007913129639943" // 2^256 + 7
+        )
+        for (s in sparse) {
+            val m = BigInt.from(s)
+            val ctxMont = ModContext(m, useBarrettOnly = false)
+            val ctxBarr = ModContext(m, useBarrettOnly = true)
+            val base = BigInt.from(2)
+            val exp = (m - 1) ushr 1
+            val outMont = MutableBigInt(); ctxMont.modPow(base, exp, outMont)
+            val outBarr = MutableBigInt(); ctxBarr.modPow(base, exp, outBarr)
+            assertEquals(outBarr.toBigInt(), outMont.toBigInt(), "mont != barrett for $s")
+        }
+    }
+
     @Test
     fun compareBarrettVsMontgomery_modPow_X() {
         val bitLen = 64

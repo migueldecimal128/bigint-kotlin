@@ -7,7 +7,7 @@ import kotlin.test.assertFailsWith
 class TestKmutSub {
 
     // Mirroring your internal logic
-    private fun dw32(v: Int): ULong = v.toUInt().toULong()
+    private fun magia_dw32(v: Int): ULong = v.toUInt().toULong()
 
     @Test
     fun testBasicSubtraction() {
@@ -15,7 +15,7 @@ class TestKmutSub {
         val z = intArrayOf(5, 5)
 
         // t = t - z -> [10-5, 20-5, 30]
-        kmutSub(t, 0, z, 0, 2)
+        magia_kmutSub(t, 0, z, 0, 2)
 
         assertContentEquals(intArrayOf(5, 15, 30), t)
     }
@@ -27,7 +27,7 @@ class TestKmutSub {
         val t = intArrayOf(0, 2)
         val z = intArrayOf(1)
 
-        kmutSub(t, 0, z, 0, 1)
+        magia_kmutSub(t, 0, z, 0, 1)
 
         // Result should be 0x00000001 FFFFFFFF -> [-1, 1]
         assertContentEquals(intArrayOf(-1, 1), t)
@@ -40,7 +40,7 @@ class TestKmutSub {
         val z = intArrayOf(1)
 
         // Subtract 1 from the lowest limb
-        kmutSub(t, 0, z, 0, 1)
+        magia_kmutSub(t, 0, z, 0, 1)
 
         // Should ripple through:
         // Limb 0: 0 - 1 = 0xFFFFFFFF (borrow 1)
@@ -56,7 +56,7 @@ class TestKmutSub {
         val t = intArrayOf(0, 0, 10, 10, 0)
         val z = intArrayOf(99, 5, 5, 99)
 
-        kmutSub(t, 2, z, 1, 2)
+        magia_kmutSub(t, 2, z, 1, 2)
 
         assertContentEquals(intArrayOf(0, 0, 5, 5, 0), t)
     }
@@ -72,7 +72,7 @@ class TestKmutSub {
         assertFailsWith<IllegalStateException> {
             // Current implementation doesn't return borrow, but we can check the result
             // 5 - 10 = -5 (which is 0xFFFFFFFB in 32-bit unsigned)
-            kmutSub(t, 0, z, 0, 1)
+            magia_kmutSub(t, 0, z, 0, 1)
 
         }
     }

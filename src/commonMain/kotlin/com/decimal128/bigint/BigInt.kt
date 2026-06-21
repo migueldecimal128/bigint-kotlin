@@ -80,7 +80,7 @@ class BigInt private constructor(
 
         val NEG_ONE = BigInt(Meta(1, 1), MAGIA_ONE) // share magia .. but no mutation allowed
 
-        val TEN = BigInt(Meta(4), intArrayOf(10))
+        val TEN = BigInt(Meta(1), intArrayOf(10))
 
         internal fun fromNormalizedNonZero(magia: Magia): BigInt =
             fromNormalizedNonZero(false, magia)
@@ -118,14 +118,14 @@ class BigInt private constructor(
             fromNonNormalizedManyNonZero(false, magia)
 
         internal fun fromNonNormalizedManyNonZero(sign: Boolean, magia: Magia): BigInt {
-            val normLen = normLen(magia)
+            val normLen = magia_normLen(magia)
             verify { normLen > 0 }
             verify { validateNormLenAndInjectPoison(magia, normLen) }
             return BigInt(Meta(sign, normLen), magia)
         }
 
         internal fun fromNonNormalized1NonZero(sign: Boolean, magia: Magia): BigInt {
-            //val normLen = normLen(magia)
+            //val normLen = magia_normLen(magia)
             val normLen = magia.size - if (magia[magia.size - 1] != 0) 0 else 1
             verify { normLen > 0 }
             verify { validateNormLenAndInjectPoison(magia, normLen) }
@@ -136,7 +136,7 @@ class BigInt private constructor(
             fromNonNormalizedOrZero(false, magia)
 
         internal fun fromNonNormalizedOrZero(sign: Boolean, magia: Magia): BigInt {
-            val normLen = normLen(magia)
+            val normLen = magia_normLen(magia)
             if (normLen > 0) {
                 verify { validateNormLenAndInjectPoison(magia, normLen) }
                 return BigInt(Meta(sign, normLen), magia)
@@ -587,7 +587,7 @@ class BigInt private constructor(
             return when {
                 maxBitLen > 0 -> {
                     var zeroTest = 0
-                    val magia = newWithBitLen(maxBitLen)
+                    val magia = magia_newWithBitLen(maxBitLen)
                     val topBits = maxBitLen and 0x1F
                     // note parenthesization on this mask creation ... 0 - 1
                     var mask = ((-topBits ushr 31) shl topBits) - 1
@@ -646,7 +646,7 @@ class BigInt private constructor(
             ensureOdd: Boolean = false
         ): BigInt = when {
             bitLen > 0 -> {
-                val magia = newWithBitLen(bitLen)
+                val magia = magia_newWithBitLen(bitLen)
                 val topBits = bitLen and 0x1F
                 var mask = ((-topBits ushr 31) shl topBits) - 1
                 for (i in magia.lastIndex downTo 0) {
@@ -851,7 +851,7 @@ class BigInt private constructor(
         fun fromLittleEndianIntArray(sign: Boolean, littleEndianIntArray: IntArray,
                                      len: Int = littleEndianIntArray.size): BigInt {
             if (len >= 0 && len <= littleEndianIntArray.size) {
-                val normLen = normLen(littleEndianIntArray, len)
+                val normLen = magia_normLen(littleEndianIntArray, len)
                 if (normLen > 0) {
                     ++BI_OP_COUNTS[BI_CONSTRUCT_BINARY_ARRAY.ordinal]
                     return fromNormalizedNonZero(sign, littleEndianIntArray.copyOf(normLen))
@@ -885,7 +885,7 @@ class BigInt private constructor(
                 throwNegBitIndex()
             if (bitIndex == 0)
                 return ONE
-            val magia = newWithBitLen(bitIndex + 1)
+            val magia = magia_newWithBitLen(bitIndex + 1)
             magia[magia.lastIndex] = 1 shl (bitIndex and 0x1F)
             ++BI_OP_COUNTS[BI_CONSTRUCT_BITWISE.ordinal]
             return fromNormalizedNonZero(magia)
@@ -915,7 +915,7 @@ class BigInt private constructor(
             }
             // non-zero and more than 1 bit wide
             val bitLen = bitWidth + bitIndex
-            val magia = newWithBitLen(bitLen)
+            val magia = magia_newWithBitLen(bitLen)
             val loIndex = bitIndex ushr 5
             magia.fill(-1, loIndex)
             val nlz = (magia.size shl 5) - bitLen
@@ -951,7 +951,7 @@ class BigInt private constructor(
                     dwBitLen == 1 -> withSetBit(shiftLeftCount)
                     else -> {
                         val totalBitLen = dwBitLen + shiftLeftCount
-                        val magia = newWithBitLen(totalBitLen)
+                        val magia = magia_newWithBitLen(totalBitLen)
                         val innerShift = shiftLeftCount and 0x1F
                         val lo = (dw shl innerShift).toInt()
                         if (innerShift == 0) {
@@ -1140,14 +1140,14 @@ class BigInt private constructor(
         val thisNormLen = meta.normLen
         if (thisNormLen >= otherNormLen) {
             if (thisNormLen == otherNormLen) {
-                val cmp = compare(magia, thisNormLen, other.magia, otherNormLen)
+                val cmp = magia_compare(magia, thisNormLen, other.magia, otherNormLen)
                 if (cmp < 0)
                     return ZERO
                 if (cmp == 0)
                     return ONE
             }
             val z = Magia(thisNormLen - otherNormLen + 1)
-            val zNormLen = setDivKnuth(z, magia, thisNormLen, null, other.magia, otherNormLen, null)
+            val zNormLen = magia_setDivKnuth(z, magia, thisNormLen, null, other.magia, otherNormLen, null)
             if (zNormLen > 0)
                 return fromNormalizedNonZero(meta.signFlag xor otherSign, z, zNormLen)
         }
@@ -1300,12 +1300,12 @@ class BigInt private constructor(
             val normLen = meta.normLen
             if (normLen < KARATSUBA_SQR_THRESHOLD) {
                 val z = IntArray(2 * normLen)
-                val zNormLen = setSqr(z, magia, normLen)
+                val zNormLen = magia_setSqr(z, magia, normLen)
                 return fromNormalizedNonZero(z, zNormLen)
             }
             val z = IntArray(2 * normLen + 1)
             val t = IntArray(3 * ((normLen + 1) / 2) + 3)
-            val zNormLen = setSqrKaratsuba(z, magia, normLen, t)
+            val zNormLen = magia_setSqrKaratsuba(z, magia, normLen, t)
             return fromNormalizedNonZero(z, zNormLen)
         }
         return ZERO
@@ -1364,8 +1364,8 @@ class BigInt private constructor(
                 verify { !isSetOp }
                 return ZERO
             }
-            val newBitLen = max(bitIndex + 1, normBitLen(this.magia, this.meta.normLen))
-            val magia = newCopyWithExactBitLen(this.magia, this.meta.normLen, newBitLen)
+            val newBitLen = max(bitIndex + 1, magia_normBitLen(this.magia, this.meta.normLen))
+            val magia = magia_newCopyWithExactBitLen(this.magia, this.meta.normLen, newBitLen)
             val wordIndex = bitIndex ushr 5
             val isolatedBit = (1 shl (bitIndex and 0x1F))
             val limb = magia[wordIndex]
@@ -1417,7 +1417,7 @@ class BigInt private constructor(
         val maxLen = max(thisNormLen, otherNormLen)
         if (maxLen > 0) {
             val z = Magia(maxLen)
-            val zNormLen = setOr(z, magia, thisNormLen, other.magia, otherNormLen)
+            val zNormLen = magia_setOr(z, magia, thisNormLen, other.magia, otherNormLen)
             return fromNormalizedNonZero(z, zNormLen)
         }
         return ZERO
@@ -1434,7 +1434,7 @@ class BigInt private constructor(
         val otherNormLen = other.meta.normLen
         val maxLen = max(thisNormLen, otherNormLen)
         val z = Magia(maxLen)
-        val zNormLen = setXor(z, magia, thisNormLen, other.magia, otherNormLen)
+        val zNormLen = magia_setXor(z, magia, thisNormLen, other.magia, otherNormLen)
         if (zNormLen > 0)
             return fromNormalizedNonZero(z, zNormLen)
         return ZERO
@@ -1451,11 +1451,11 @@ class BigInt private constructor(
     infix fun ushr(bitCount: Int): BigInt {
         return when {
             bitCount > 0 -> {
-                val newBitLen = normBitLen(magia, meta.normLen) - bitCount
+                val newBitLen = magia_normBitLen(magia, meta.normLen) - bitCount
                 if (newBitLen <= 0)
                     return ZERO
-                val z = newWithBitLen(newBitLen)
-                val zNormLen = setShiftRight(z, magia, meta.normLen, bitCount)
+                val z = magia_newWithBitLen(newBitLen)
+                val zNormLen = magia_setShiftRight(z, magia, meta.normLen, bitCount)
                 fromNormalizedNonZero(z, zNormLen)
             }
             bitCount == 0 -> abs()
@@ -1474,14 +1474,14 @@ class BigInt private constructor(
     infix fun shr(bitCount: Int): BigInt {
         return when {
             bitCount > 0 -> {
-                val newBitLen = normBitLen(magia, meta.normLen) - bitCount
+                val newBitLen = magia_normBitLen(magia, meta.normLen) - bitCount
                 if (newBitLen <= 0)
                     return if (meta.isNegative) NEG_ONE else ZERO
-                val z = newWithBitLen(newBitLen)
-                val zNormLen = setShiftRight(z, magia, meta.normLen, bitCount)
+                val z = magia_newWithBitLen(newBitLen)
+                val zNormLen = magia_setShiftRight(z, magia, meta.normLen, bitCount)
                 verify { zNormLen == z.size }
                 val needsIncrement = meta.isNegative &&
-                        testAnyBitInLowerN(magia, meta.normLen, bitCount)
+                        magia_testAnyBitInLowerN(magia, meta.normLen, bitCount)
                 if (! needsIncrement) {
                     fromNormalizedNonZero(meta.signFlag, z, zNormLen)
                 } else {
@@ -1515,10 +1515,10 @@ class BigInt private constructor(
         return when {
             isZero() || bitCount == 0 -> this
             bitCount > 0 -> {
-                val thisBitLen = normBitLen(magia, meta.normLen)
+                val thisBitLen = magia_normBitLen(magia, meta.normLen)
                 val zBitLen = thisBitLen + bitCount
-                val z = newWithBitLen(zBitLen)
-                val zNormLen = setShiftLeft(z, magia, meta.normLen, bitCount)
+                val z = magia_newWithBitLen(zBitLen)
+                val zNormLen = magia_setShiftLeft(z, magia, meta.normLen, bitCount)
                 verify { zNormLen == z.size }
                 fromNormalizedNonZero(meta.signFlag, z)
             }
@@ -1549,7 +1549,7 @@ class BigInt private constructor(
         }
         // more than 1 bit wide and some overlap
         val clampedBitLen = min(bitWidth + bitIndex, myBitLen)
-        val ret = newCopyWithExactBitLen(magia, meta.normLen, clampedBitLen)
+        val ret = magia_newCopyWithExactBitLen(magia, meta.normLen, clampedBitLen)
         val nlz = (ret.size shl 5) - clampedBitLen
         ret[ret.lastIndex] = ret[ret.lastIndex] and (-1 ushr nlz)
         val loIndex = bitIndex ushr 5
@@ -1621,12 +1621,12 @@ class BigInt private constructor(
             when {
                 thisNormLen > 0 && thisSign == otherSign && w != 0u -> {
                     val wBitLen = 32 - w.countLeadingZeroBits()
-                    val thisBitLen = nonZeroNormBitLen(magia, thisNormLen)
+                    val thisBitLen = magia_nonZeroNormBitLen(magia, thisNormLen)
                     val newBitLen = max(thisBitLen, wBitLen) + 1
-                    val z = this.magia.copyOf(limbLenFromBitLen(newBitLen))
+                    val z = this.magia.copyOf(magia_limbLenFromBitLen(newBitLen))
                     return fromNormalizedNonZero(
                         thisSign, z,
-                        mutAdd32(z, thisNormLen, w)
+                        magia_mutAdd32(z, thisNormLen, w)
                     )
                 }
 
@@ -1634,7 +1634,7 @@ class BigInt private constructor(
                 // do subtraction
                 thisNormLen > 1 -> {
                     val z = this.magia.copyOf()
-                    val zNormLen = mutSub32(z, thisNormLen, w)
+                    val zNormLen = magia_mutSub32(z, thisNormLen, w)
                     if (zNormLen > 0)
                         return fromNormalizedNonZero(thisSign, z, zNormLen)
                     return ZERO
@@ -1663,12 +1663,12 @@ class BigInt private constructor(
             when {
                 thisNormLen > 0 && thisSign == otherSign && dw != 0uL -> {
                     val wBitLen = 64 - dw.countLeadingZeroBits()
-                    val thisBitLen = nonZeroNormBitLen(magia, thisNormLen)
+                    val thisBitLen = magia_nonZeroNormBitLen(magia, thisNormLen)
                     val newBitLen = max(thisBitLen, wBitLen) + 1
-                    val z = this.magia.copyOf(limbLenFromBitLen(newBitLen))
+                    val z = this.magia.copyOf(magia_limbLenFromBitLen(newBitLen))
                     return fromNormalizedNonZero(
                         thisSign, z,
-                        mutAdd64(z, thisNormLen, dw)
+                        magia_mutAdd64(z, thisNormLen, dw)
                     )
                 }
                 dw == 0uL -> return this
@@ -1676,7 +1676,7 @@ class BigInt private constructor(
                 // do subtraction
                 thisNormLen > 2 -> {
                     val z = this.magia.copyOf()
-                    val zNormLen = mutSub64(z, thisNormLen, dw)
+                    val zNormLen = magia_mutSub64(z, thisNormLen, dw)
                     if (zNormLen > 0)
                         return fromNormalizedNonZero(thisSign, z, zNormLen)
                     return ZERO
@@ -1712,7 +1712,7 @@ class BigInt private constructor(
         when {
             otherNormLen <= 2 -> {
                 return when (otherNormLen) {
-                    2 -> addImpl64(otherSign, toRawULongExact(other.magia))
+                    2 -> addImpl64(otherSign, magia_toRawULongExact(other.magia))
                     1 -> addImpl32(otherSign, other.magia[0].toUInt())
                     else -> this
                 }
@@ -1728,14 +1728,14 @@ class BigInt private constructor(
                 val thisBitLen = this.magnitudeBitLen()
                 val otherBitLen = other.magnitudeBitLen()
                 val zBitLen = max(thisBitLen, otherBitLen) + 1
-                val z = Magia(limbLenFromBitLen(zBitLen))
+                val z = Magia(magia_limbLenFromBitLen(zBitLen))
                 val zNormLen =
                     if (thisNormLen >= otherNormLen) {
                         this.magia.copyInto(z, 0, 0, thisNormLen)
-                        mutAdd(z, thisNormLen, other.magia, otherNormLen)
+                        magia_mutAdd(z, thisNormLen, other.magia, otherNormLen)
                     } else {
                         other.magia.copyInto(z, 0, 0, otherNormLen)
-                        mutAdd(z, otherNormLen, magia, thisNormLen)
+                        magia_mutAdd(z, otherNormLen, magia, thisNormLen)
                     }
                 return fromNormalizedNonZero(thisSign, z, zNormLen)
             }
@@ -1748,7 +1748,7 @@ class BigInt private constructor(
                     val largeMagia = if (cmp > 0) this.magia else other.magia
                     val smallMagia = if (cmp > 0) other.magia else this.magia
                     val z = Magia(largeNormLen)
-                    val zNormLen = setSub(z, largeMagia, largeNormLen, smallMagia, smallNormLen)
+                    val zNormLen = magia_setSub(z, largeMagia, largeNormLen, smallMagia, smallNormLen)
                     if (zNormLen > 0)
                         return fromNormalizedNonZero(sign, z, zNormLen)
                 }
@@ -1763,11 +1763,11 @@ class BigInt private constructor(
             val sign = this.meta.signFlag xor dwSign
             val thisMagia = this.magia
             val thisNormLen = this.meta.normLen
-            val thisBitLen = normBitLen(thisMagia, thisNormLen)
+            val thisBitLen = magia_normBitLen(thisMagia, thisNormLen)
             val wBitLen = 32 - w.countLeadingZeroBits()
             val zBitLen = thisBitLen + wBitLen
-            val z = newWithBitLen(zBitLen)
-            val zNormLen = setMul32(z, thisMagia, thisNormLen, w)
+            val z = magia_newWithBitLen(zBitLen)
+            val zNormLen = magia_setMul32(z, thisMagia, thisNormLen, w)
             fromNormalizedNonZero(sign, z, zNormLen)
         } else ZERO
     }
@@ -1778,11 +1778,11 @@ class BigInt private constructor(
             val sign = this.meta.signFlag xor dwSign
             val thisMagia = this.magia
             val thisNormLen = this.meta.normLen
-            val thisBitLen = normBitLen(thisMagia, thisNormLen)
+            val thisBitLen = magia_normBitLen(thisMagia, thisNormLen)
             val dwBitLen = 64 - dw.countLeadingZeroBits()
             val zBitLen = thisBitLen + dwBitLen
-            val z = newWithBitLen(zBitLen)
-            val zNormLen = setMul64(z, thisMagia, thisNormLen, dw)
+            val z = magia_newWithBitLen(zBitLen)
+            val zNormLen = magia_setMul64(z, thisMagia, thisNormLen, dw)
             fromNormalizedNonZero(sign, z, zNormLen)
         } else ZERO
     }
@@ -1793,11 +1793,11 @@ class BigInt private constructor(
             val sign = this.meta.signFlag xor other.meta.signFlag
             val thisMagia = this.magia
             val thisNormLen = this.meta.normLen
-            val thisBitLen = normBitLen(thisMagia, thisNormLen)
-            val otherBitLen = normBitLen(other.magia, other.meta.normLen)
+            val thisBitLen = magia_normBitLen(thisMagia, thisNormLen)
+            val otherBitLen = magia_normBitLen(other.magia, other.meta.normLen)
             val zBitLen = thisBitLen + otherBitLen
-            val z = newWithBitLen(zBitLen)
-            val zNormLen = setMul(z, thisMagia, thisNormLen, other.magia, other.meta.normLen)
+            val z = magia_newWithBitLen(zBitLen)
+            val zNormLen = magia_setMul(z, thisMagia, thisNormLen, other.magia, other.meta.normLen)
             fromNormalizedNonZero(sign, z, zNormLen)
         } else ZERO
     }
@@ -1808,7 +1808,7 @@ class BigInt private constructor(
             throwDivByZero()
         if (!isZero()) {
             val z = Magia(meta.normLen)
-            val zNormLen = setDiv32(z, magia, meta.normLen, w)
+            val zNormLen = magia_setDiv32(z, magia, meta.normLen, w)
             if (zNormLen > 0)
                 return fromNormalizedNonZero(this.meta.signFlag xor wSign, z, zNormLen)
         }
@@ -1823,11 +1823,11 @@ class BigInt private constructor(
             return ZERO
         val sign = meta.signFlag xor dwSign
         val z = Magia(meta.normLen - 1)
-        val tryFast64 = trySetDivFastPath64(z, magia, meta.normLen, dw)
+        val tryFast64 = magia_trySetDivFastPath64(z, magia, meta.normLen, dw)
         val zNormLen = when {
             tryFast64 > 0 -> tryFast64
             tryFast64 == 0 -> return ZERO
-            else -> setDivKnuth64(z, magia, meta.normLen, null, dw)
+            else -> magia_setDivKnuth64(z, magia, meta.normLen, null, dw)
         }
         return fromNormalizedNonZero(sign, z, zNormLen)
     }
@@ -1836,7 +1836,7 @@ class BigInt private constructor(
         if (dw == 0uL)
             throwDivByZero()
         if (!isZero()) {
-            val rem = calcRem64(magia, meta.normLen, null, dw)
+            val rem = magia_calcRem64(magia, meta.normLen, null, dw)
             if (rem != 0uL) {
                 return if (meta.isNegative && isMod)
                     from(dw - rem)
@@ -1859,29 +1859,29 @@ class BigInt private constructor(
         val applyModRingNormalization = isNegative() && isMod
         val z: Magia
         var zNormLen = 0
-        if (normBitLen(x, xNormLen) <= normBitLen(y, yNormLen)) {
-            val cmp = compare(x, xNormLen, y, yNormLen)
+        if (magia_normBitLen(x, xNormLen) <= magia_normBitLen(y, yNormLen)) {
+            val cmp = magia_compare(x, xNormLen, y, yNormLen)
             when {
                 cmp < 0 && !applyModRingNormalization -> return this
                 cmp < 0 -> {
                     z = Magia(yNormLen)
-                    zNormLen = setSub(z, y, yNormLen, x, xNormLen)
+                    zNormLen = magia_setSub(z, y, yNormLen, x, xNormLen)
                     return fromNormalizedNonZero(z, zNormLen)
                 }
                 cmp == 0 -> return ZERO
                 else -> {
                     z = Magia(xNormLen)
-                    zNormLen = setSub(z, x, xNormLen, y, yNormLen)
+                    zNormLen = magia_setSub(z, x, xNormLen, y, yNormLen)
                 }
             }
         } else {
             z = Magia(yNormLen)
-            zNormLen = setRem(z, magia, xNormLen, other.magia, yNormLen)
+            zNormLen = magia_setRem(z, magia, xNormLen, other.magia, yNormLen)
             if (zNormLen == 0)
                 return ZERO
         }
         if (applyModRingNormalization)
-            zNormLen = setSub(z, y, yNormLen, z, zNormLen)
+            zNormLen = magia_setSub(z, y, yNormLen, z, zNormLen)
         return fromNormalizedNonZero(meta.signFlag && !isMod, z, zNormLen)
     }
 

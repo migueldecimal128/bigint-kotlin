@@ -50,7 +50,7 @@ class TestMagia {
         Assertions.assertEquals(str, str2)
 
         val magia3 = BigIntParsePrint.from(str)
-        assert(EQ(magia, normLen(magia), magia3, normLen(magia3)))
+        assert(magia_EQ(magia, magia_normLen(magia), magia3, magia_normLen(magia3)))
         val str3 = BigIntParsePrint.toString(magia3)
         Assertions.assertEquals(str, str3)
     }
@@ -58,24 +58,24 @@ class TestMagia {
     fun testRoundTripShift(jbi: BigInteger) {
         val shift = random.nextInt(100)
         val magia = MagiaTransducer.magiaFromBi(jbi)
-        val magiaBitLen = bitLen(magia)
+        val magiaBitLen = magia_bitLen(magia)
 
         val jbiLeft = jbi.shiftLeft(shift)
-        val magiaShl = newWithBitLen(magiaBitLen + shift)
-        setShiftLeft(magiaShl, magia, normLen(magia), shift)
+        val magiaShl = magia_newWithBitLen(magiaBitLen + shift)
+        magia_setShiftLeft(magiaShl, magia, magia_normLen(magia), shift)
         assert(MagiaTransducer.EQ(magiaShl, jbiLeft))
 
-        //mutateShiftRight(magiaShl, normLen(magiaShl), shift)
+        //mutateShiftRight(magiaShl, magia_normLen(magiaShl), shift)
         //assert(MagiaTransducer.EQ(magiaShl, jbi))
 
         //val jbiRight = jbi.shiftRight(shift)
-        //mutateShiftRight(magia, normLen(magia), shift)
+        //mutateShiftRight(magia, magia_normLen(magia), shift)
         //assert(MagiaTransducer.EQ(magia, jbiRight))
     }
 
     fun testBitLen(jbi: BigInteger) {
         val magia = MagiaTransducer.magiaFromBi(jbi)
-        val bitLen = bitLen(magia)
+        val bitLen = magia_bitLen(magia)
         Assertions.assertEquals(jbi.bitLength(), bitLen)
     }
 

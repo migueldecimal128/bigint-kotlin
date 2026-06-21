@@ -19,10 +19,10 @@ class TestKaratsubaSetSqr {
         val t = IntArray(3 * k1 + 3)
 
         // 1. Run Karatsuba
-        karatsubaSqr(zKaratsuba, 0, a, 0, n, t)
+        magia_karatsubaSqr(zKaratsuba, 0, a, 0, n, t)
 
         // 2. Run Schoolbook (Reference)
-        setSqrSchoolbook(zSchoolbook, 0, a, 0, n)
+        magia_setSqrSchoolbook(zSchoolbook, 0, a, 0, n)
 
         assertContentEquals(zSchoolbook, zKaratsuba, "Karatsuba squaring failed for size $n")
     }
@@ -95,10 +95,10 @@ class TestKaratsubaSetSqr {
         val t = IntArray(3 * 2 + 3)
 
         // Square the middle 4 elements [1, 2, 3, 4] into z starting at index 2
-        karatsubaSqr(z, 2, a, 2, 4, t)
+        magia_karatsubaSqr(z, 2, a, 2, 4, t)
 
         val expectedResult = IntArray(8)
-        setSqrSchoolbook(expectedResult, 0, intArrayOf(1, 2, 3, 4), 0, 4)
+        magia_setSqrSchoolbook(expectedResult, 0, intArrayOf(1, 2, 3, 4), 0, 4)
 
         // Verify z[2..9] matches the expected square
         for (i in 0 until 8) {
