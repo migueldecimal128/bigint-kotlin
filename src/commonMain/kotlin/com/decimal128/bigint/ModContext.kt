@@ -424,7 +424,8 @@ class ModContext(val m: BigInt, useBarrettOnly: Boolean = false) {
              * Computes the Barrett reciprocal `mu = floor(b^(2k) / m)`.
              */
             private fun calcMu(m: BigInt): BigInt {
-                val x = BigInt.withSetBit(2 * m.meta.normLen * 32)
+                val k = (m.magnitudeBitLen() + 0x1F) ushr 5   // limb count, via public API
+                val x = BigInt.withSetBit(2 * k * 32)
                 val mu = x / m
                 return mu
             }
@@ -621,8 +622,8 @@ class ModContext(val m: BigInt, useBarrettOnly: Boolean = false) {
 
     class Montgomery(val modulus: BigInt) {
         init { require (modulus >= 1 && modulus.isOdd()) }
-        val k = modulus.meta.normLen
-        val np = computeNp(modulus.magia[0].toUInt())
+        val k = (modulus.magnitudeBitLen() + 0x1F) ushr 5   // limb count, via public API
+        val np = computeNp(modulus.toUInt())                // low 32-bit limb (modulus > 0)
         val r2 = BigInt.withSetBit(64*k) % modulus
 
         companion object {
