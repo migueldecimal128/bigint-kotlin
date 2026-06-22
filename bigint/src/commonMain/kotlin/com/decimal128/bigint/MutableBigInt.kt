@@ -1836,24 +1836,19 @@ class MutableBigInt private constructor (
      *
      * @see mutAnd for an in-place variant
      */
+    // NOTE: setAnd/setOr/setXor/setNot delegate to the BigInt two's-complement
+    // combiner rather than mutating the accumulator buffer in place. This is the
+    // simple, correct form and guarantees Mbi and BigInt give identical results,
+    // but unlike the other set* ops it ALLOCATES (a snapshot of any aliased
+    // operand plus the result) instead of being zero-alloc/in-place. Acceptable
+    // because bitwise ops are not on a hot path in the consumers (the recipmul
+    // oracle uses div/mul/shift; xor is rare mask reconstruction). If Mbi bitwise
+    // ever lands on a hot path, reimplement in-place with a sign-aware engine
+    // kernel (the old magnitude-only magia_setAnd/Or/Xor were removed in this change).
     fun setAnd(x: BigIntNumber, y: BigIntNumber): MutableBigInt {
-        verify { x.isNormalized() }
-        verify { y.isNormalized() }
-        val xNormLen = x.meta.normLen
-        val yNormLen = y.meta.normLen
-        val minNormLen = min(x.meta.normLen, y.meta.normLen)
-        if (minNormLen == 0)
-            return setZero()
-        val xMagia = x.magia // save for aliasing
-        val yMagia = y.magia
-        ensureMagiaCapacityDiscard(minNormLen)
-        updateMeta(
-            Meta(
-                0,
-                magia_setAnd(magia, xMagia, xNormLen, yMagia, yNormLen))
-        )
-        verify { isNormalized() }
-        return this
+        // Two's-complement AND (matches java.math.BigInteger). Computed into a
+        // fresh BigInt before writing `this`, so aliasing (x or y === this) is safe.
+        return set(x.toBigInt() and y.toBigInt())
     }
 
     /**
@@ -1888,23 +1883,8 @@ class MutableBigInt private constructor (
      * @see mutOr for an in-place variant
      */
     fun setOr(x: BigIntNumber, y: BigIntNumber): MutableBigInt {
-        verify { x.isNormalized() }
-        verify { y.isNormalized() }
-        val xNormLen = x.meta.normLen
-        val yNormLen = y.meta.normLen
-        val maxNormLen = max(x.meta.normLen, y.meta.normLen)
-        if (maxNormLen == 0)
-            return setZero()
-        val xMagia = x.magia // save for aliasing
-        val yMagia = y.magia
-        ensureMagiaCapacityDiscard(maxNormLen)
-        updateMeta(
-            Meta(
-                0,
-                magia_setOr(magia, xMagia, xNormLen, yMagia, yNormLen))
-        )
-        verify { isNormalized() }
-        return this
+        // Two's-complement OR (matches java.math.BigInteger); aliasing-safe.
+        return set(x.toBigInt() or y.toBigInt())
     }
 
     /**
@@ -1940,23 +1920,8 @@ class MutableBigInt private constructor (
      * @see mutXor for an in-place variant
      */
     fun setXor(x: BigIntNumber, y: BigIntNumber): MutableBigInt {
-        verify { x.isNormalized() }
-        verify { y.isNormalized() }
-        val xNormLen = x.meta.normLen
-        val yNormLen = y.meta.normLen
-        val maxNormLen = max(x.meta.normLen, y.meta.normLen)
-        if (maxNormLen == 0)
-            return setZero()
-        val xMagia = x.magia // save for aliasing
-        val yMagia = y.magia
-        ensureMagiaCapacityDiscard(maxNormLen)
-        updateMeta(
-            Meta(
-                0,
-                magia_setXor(magia, xMagia, xNormLen, yMagia, yNormLen))
-        )
-        verify { isNormalized() }
-        return this
+        // Two's-complement XOR (matches java.math.BigInteger); aliasing-safe.
+        return set(x.toBigInt() xor y.toBigInt())
     }
 
     /**
@@ -1972,6 +1937,12 @@ class MutableBigInt private constructor (
      * @see setXor
      */
     fun mutXor(y: BigIntNumber) = setXor(this, y)
+
+    /** Sets this to the two's-complement NOT of [x] (`~x == -x - 1`). */
+    fun setNot(x: BigIntNumber): MutableBigInt = set(x.toBigInt().not())
+
+    /** In-place two's-complement NOT (`this = ~this`). */
+    fun mutNot() = setNot(this)
 
     fun montgomeryRedc(modulus: BigInt, np: UInt): MutableBigInt {
         require (modulus.isOdd())

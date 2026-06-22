@@ -861,6 +861,26 @@ class BigInt private constructor(
             throwBoundsCheckViolation()
         }
 
+        /**
+         * Builds a BigInt from a little-endian two's-complement Int array (as
+         * produced by the bitwise ops). The top limb's sign bit determines the
+         * sign; for a negative result the magnitude is the two's complement
+         * (`~w + 1`) of the words.
+         */
+        internal fun fromTwosComplementLittleEndianInts(words: IntArray): BigInt {
+            val negative = words[words.size - 1] < 0
+            if (!negative)
+                return fromLittleEndianIntArray(false, words)
+            val mag = IntArray(words.size)
+            var carry = 1L
+            for (i in words.indices) {
+                val v = (words[i].inv().toLong() and 0xFFFF_FFFFL) + carry
+                mag[i] = v.toInt()
+                carry = v ushr 32
+            }
+            return fromLittleEndianIntArray(true, mag)
+        }
+
         fun fromLittleEndianIntArray(sign: Boolean, littleEndianIntArray: IntArray,
                                      off: Int, len: Int): BigInt {
             require (off >= 0 && len >= 0 && off + len <= littleEndianIntArray.size)
@@ -1347,66 +1367,66 @@ class BigInt private constructor(
         throwBoundsCheckViolation()
     }
 
-    /**
-     * Returns a new BigInt representing the bitwise AND of the magnitudes,
-     * ignoring signs.
-     *
-     * The result is always non-negative.
-     */
-    infix fun and(other: BigInt): BigInt {
-        var iLast = min(this.meta.normLen, other.meta.normLen)
-        val thisMagia = magia
-        val otherMagia = other.magia
-        if (iLast <= thisMagia.size && iLast <= otherMagia.size) { // BCE
-            do {
-                --iLast
-                if (iLast < 0)
-                    return ZERO
-            } while ((thisMagia[iLast] and otherMagia[iLast]) == 0)
-            val z = Magia((iLast + 1))
-            while (iLast >= 0) {
-                z[iLast] = thisMagia[iLast] and otherMagia[iLast]
-                --iLast
-            }
-            return fromNormalizedNonZero(z)
-        }
-        throwBoundsCheckViolation()
+    // ------------------------------------------------------------------------
+    // Bitwise AND / OR / XOR / NOT — two's-complement semantics, matching
+    // java.math.BigInteger (infinite sign extension). Negative operands
+    // participate; e.g. (-1) and x == x, ~x == -x - 1. (Previously these were
+    // magnitude-only / always-non-negative; that divergence has been removed.)
+    //
+    // Implementation follows the BigInteger trick: the n-th limb of a value's
+    // two's-complement form is computed on the fly (no full carry pass) via
+    // twosComplementLimb(); operate word-wise over max(len)+1 limbs (the +1 is
+    // the sign word, so a non-negative operand whose top limb has bit 31 set
+    // still reads as positive), then rebuild from the two's-complement result.
+    // ------------------------------------------------------------------------
+
+    /** Little-endian index of the lowest non-zero magnitude limb (negatives only). */
+    private fun firstNonzeroLimbIndex(): Int {
+        val n = meta.normLen
+        var i = 0
+        while (i < n && magia[i] == 0) ++i
+        return i
     }
 
     /**
-     * Returns a new BigInt representing the bitwise OR of the magnitudes,
-     * ignoring signs.
-     *
-     * The result is always non-negative.
+     * The `n`-th limb (little-endian) of this value's two's-complement
+     * representation, with infinite sign extension. `firstNonzero` is
+     * [firstNonzeroLimbIndex] for negatives (ignored when non-negative).
      */
-    infix fun or(other: BigInt): BigInt {
-        val thisNormLen = meta.normLen
-        val otherNormLen = other.meta.normLen
-        val maxLen = max(thisNormLen, otherNormLen)
-        if (maxLen > 0) {
-            val z = Magia(maxLen)
-            val zNormLen = magia_setOr(z, magia, thisNormLen, other.magia, otherNormLen)
-            return fromNormalizedNonZero(z, zNormLen)
+    private fun twosComplementLimb(n: Int, firstNonzero: Int): Int {
+        val len = meta.normLen
+        if (n >= len) return if (meta.isNegative) -1 else 0   // sign extension
+        val m = magia[n]
+        return when {
+            !meta.isNegative -> m
+            n < firstNonzero -> 0          // trailing zeros stay zero
+            n == firstNonzero -> -m        // negate the lowest non-zero limb
+            else -> m.inv()                // invert above it
         }
-        return ZERO
     }
 
-    /**
-     * Returns a new BigInt representing the bitwise XOR of the magnitudes,
-     * ignoring signs.
-     *
-     * The result is always non-negative.
-     */
-    infix fun xor(other: BigInt): BigInt {
-        val thisNormLen = meta.normLen
-        val otherNormLen = other.meta.normLen
-        val maxLen = max(thisNormLen, otherNormLen)
-        val z = Magia(maxLen)
-        val zNormLen = magia_setXor(z, magia, thisNormLen, other.magia, otherNormLen)
-        if (zNormLen > 0)
-            return fromNormalizedNonZero(z, zNormLen)
-        return ZERO
+    /** Combine two values word-wise in two's-complement, then rebuild. */
+    private fun bitwise(other: BigInt, op: (Int, Int) -> Int): BigInt {
+        val len = max(meta.normLen, other.meta.normLen) + 1   // +1 sign word
+        val xFnz = if (meta.isNegative) firstNonzeroLimbIndex() else 0
+        val yFnz = if (other.meta.isNegative) other.firstNonzeroLimbIndex() else 0
+        val result = IntArray(len)
+        for (i in 0 until len)
+            result[i] = op(twosComplementLimb(i, xFnz), other.twosComplementLimb(i, yFnz))
+        return fromTwosComplementLittleEndianInts(result)
     }
+
+    /** Bitwise AND (two's-complement). */
+    infix fun and(other: BigInt): BigInt = bitwise(other) { a, b -> a and b }
+
+    /** Bitwise OR (two's-complement). */
+    infix fun or(other: BigInt): BigInt = bitwise(other) { a, b -> a or b }
+
+    /** Bitwise XOR (two's-complement). */
+    infix fun xor(other: BigInt): BigInt = bitwise(other) { a, b -> a xor b }
+
+    /** Bitwise NOT (`~this == -this - 1`). */
+    fun not(): BigInt = this.negate().minus(ONE)
 
     /**
      * Performs an unsigned right shift (logical shift) of the magnitude.

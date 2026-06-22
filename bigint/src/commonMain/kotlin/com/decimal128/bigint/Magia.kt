@@ -1130,100 +1130,10 @@ internal fun magia_ctz(x: Magia, normLen: Int): Int {
 }
 
 
-/**
- * Computes `z = x AND y` over the normalized ranges `x[0‥xNormLen)` and
- * `y[0‥yNormLen)`, returning the normalized limb length of the result.
- * Supports in-place mutation when `z` aliases `x` or `y`.
- */
-internal fun magia_setAnd(z: Magia, x: Magia, xNormLen: Int, y: Magia, yNormLen: Int): Int {
-    if (xNormLen >= 0 && xNormLen <= x.size && yNormLen >= 0 && yNormLen <= y.size) {
-        verify { magia_isNormalized(x, xNormLen) }
-        verify { magia_isNormalized(y, yNormLen) }
-        val minLen = min(xNormLen, yNormLen)
-        if (minLen <= z.size) {
-            var i = minLen
-            do {
-                --i
-                if (i < 0)
-                    return 0
-            } while ((x[i] and y[i]) == 0)
-            val zNormLen = i + 1
-            while (i >= 0) {
-                z[i] = x[i] and y[i]
-                --i
-            }
-            verify { magia_isNormalized(z, zNormLen) }
-            return zNormLen
-        }
-    }
-    throwBoundsCheckViolation()
-}
-
-/**
- * Computes `z = x OR y` over the normalized ranges `x[0‥xNormLen)` and
- * `y[0‥yNormLen)`.
- * The result length is the larger of the two operand lengths, and the write
- * supports in-place mutation when `z` aliases either operand.
- *
- * @return the normalized limb length of the OR result.
- */
-internal fun magia_setOr(z: Magia, x: Magia, xNormLen: Int, y: Magia, yNormLen: Int): Int {
-    if (xNormLen >= 0 && xNormLen <= x.size && yNormLen >= 0 && yNormLen <= y.size) {
-        verify { magia_isNormalized(x, xNormLen) }
-        verify { magia_isNormalized(y, yNormLen) }
-        val maxLen = max(xNormLen, yNormLen)
-        if (maxLen <= z.size) {
-            val minLen = min(xNormLen, yNormLen)
-            val zNormLen = maxLen
-            for (i in 0..<minLen)
-                z[i] = x[i] or y[i]
-            when {
-                minLen < xNormLen ->
-                    x.copyInto(z, minLen, minLen, xNormLen)
-
-                minLen < yNormLen ->
-                    y.copyInto(z, minLen, minLen, yNormLen)
-            }
-            verify { magia_isNormalized(z, zNormLen) }
-            return zNormLen
-        }
-    }
-    throwBoundsCheckViolation()
-}
-
-/**
- * Computes `z = x XOR y` over the normalized ranges `x[0‥xNormLen)` and
- * `y[0‥yNormLen)`, returning the normalized limb length of the result.
- * Supports in-place mutation when `z` aliases either operand.
- */
-internal fun magia_setXor(z: Magia, x: Magia, xNormLen: Int, y: Magia, yNormLen: Int): Int {
-    if (xNormLen >= 0 && xNormLen <= x.size && yNormLen >= 0 && yNormLen <= y.size) {
-        verify { magia_isNormalized(x, xNormLen) }
-        verify { magia_isNormalized(y, yNormLen) }
-        val maxLen = max(xNormLen, yNormLen)
-        if (maxLen <= z.size) {
-            val minLen = min(xNormLen, yNormLen)
-            for (i in 0..<minLen)
-                z[i] = x[i] xor y[i]
-            val zNormLen = when {
-                minLen < xNormLen -> {
-                    x.copyInto(z, minLen, minLen, xNormLen)
-                    xNormLen
-                }
-
-                minLen < yNormLen -> {
-                    y.copyInto(z, minLen, minLen, yNormLen)
-                    yNormLen
-                }
-
-                else -> magia_normLen(z, minLen)
-            }
-            verify { magia_isNormalized(z, zNormLen) }
-            return zNormLen
-        }
-    }
-    throwBoundsCheckViolation()
-}
+// magia_setAnd / magia_setOr / magia_setXor removed: the BigInt/MutableBigInt
+// bitwise ops are now two's-complement (matching java.math.BigInteger) and are
+// implemented at the BigInt layer (BigInt.bitwise / twosComplementLimb), so the
+// old magnitude-only engine kernels are no longer used.
 
 /**
  * Tests whether the bit at the specified [bitIndex] is set in the given unsigned integer.
