@@ -142,11 +142,13 @@ sealed class BigIntNumber(
     fun isPositive() = meta.isPositive
 
     /**
-     * Standard signum function.
+     * Sign as a plain Int. Named `signumInt` (renamed from `signum`) for
+     * cross-port parity with bigint-swift, where `signum()` is reserved for the
+     * `Self`-returning Swift `BinaryInteger.signum()`.
      *
      * @return -1 if negative, 0 if zero, 1 if positive
      */
-    fun signum() = meta.signum
+    fun signumInt() = meta.signum
 
     /**
      * Returns `true` if this value is even.
